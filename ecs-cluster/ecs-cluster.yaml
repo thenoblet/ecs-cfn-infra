@@ -23,7 +23,7 @@ Resources:
   ECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub "${AWS::StackName}-app-repo"
+      RepositoryName: !Sub "cicd-ecr-repo"
 
   # IAM Role for GitHub Actions (OIDC)
   GitHubOidcRole:
