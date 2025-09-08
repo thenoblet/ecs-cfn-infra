@@ -5,7 +5,7 @@ Parameters:
   VpcStackName:
     Type: String
     Default: "CICD-VPC-STACK"
-    Description: "Name of the VPC stack to import values from
+    Description: "Name of the VPC stack to import values from"
 
 Resources:
   ALBSecurityGroup:
