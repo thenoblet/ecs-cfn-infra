@@ -2,21 +2,21 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Provisions the ECS Cluster, ALB, ECR Repository, OIDC Role, and ECS Service."
 
 Parameters:
-  VpcId:
+  VpcStackName:
     Type: String
-  PublicSubnetIds:
-    Type: "List<AWS::EC2::Subnet::Id>"
-  PrivateSubnetIds:
-    Type: "List<AWS::EC2::Subnet::Id>"
-  ALBSecurityGroupId:
+    Default: "CICD-VPC-STACK"
+    Description: "Name of the VPC stack to import values from"
+  SecurityStackName:
     Type: String
-  ECSSecurityGroupId:
-    Type: String
+    Default: "CICD-SECURITY-STACK"
+    Description: "Name of the Security Groups stack to import values from"
   GitHubOrg:
     Type: String
+    Default: "thenoblet"
     Description: Your GitHub organization/username.
   GitHubRepo:
     Type: String
+    Default: "awslab"
     Description: Your GitHub repository name.
 
 Resources:
@@ -48,6 +48,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - "ecr:GetAuthorizationToken"
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - "ecr:BatchCheckLayerAvailability"
                   - "ecr:InitiateLayerUpload"
                   - "ecr:UploadLayerPart"
@@ -78,13 +81,21 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Subnets: !Ref PublicSubnetIds
-      SecurityGroups: [!Ref ALBSecurityGroupId]
+      Subnets: !Split
+        - ","
+        - !ImportValue
+          Fn::Sub: "${VpcStackName}-PublicSubnetIds"
+      SecurityGroups:
+        - !ImportValue
+          Fn::Sub: "${SecurityStackName}-ALBSG-ID"
+      Scheme: internet-facing
 
   TargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref VpcId
+      Name: !Sub "${AWS::StackName}-TG-Blue"
+      VpcId: !ImportValue
+        Fn::Sub: "${VpcStackName}-VPCId"
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -94,7 +105,9 @@ Resources:
   TargetGroupGreen:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref VpcId
+      Name: !Sub "${AWS::StackName}-TG-Green"
+      VpcId: !ImportValue
+        Fn::Sub: "${VpcStackName}-VPCId"
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -122,8 +135,8 @@ Resources:
       RequiresCompatibilities: ["FARGATE"]
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       ContainerDefinitions:
-        - Name: "my-app-container"
-          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${"latest"}'
+        - Name: "awslab-app-container"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:latest"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
@@ -135,38 +148,66 @@ Resources:
       Cluster: !Ref ECSCluster
       TaskDefinition: !Ref ECSTaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 1
+      DesiredCount: 2
       DeploymentController:
         Type: CODE_DEPLOY
       NetworkConfiguration:
         AwsvpcConfiguration:
-          Subnets: !Ref PrivateSubnetIds
-          SecurityGroups: [!Ref ECSSecurityGroupId]
+          Subnets: !Split
+            - ","
+            - !ImportValue
+              Fn::Sub: "${VpcStackName}-PrivateSubnetIds"
+          SecurityGroups:
+            - !ImportValue
+              Fn::Sub: "${SecurityStackName}-ECSSG-ID"
       LoadBalancers:
         - TargetGroupArn: !Ref TargetGroupBlue
-          ContainerName: "my-app-container"
+          ContainerName: "awslab-app-container"
           ContainerPort: 8080
 
 Outputs:
   ECSClusterName:
+    Description: ECS Cluster Name
     Value: !Ref ECSCluster
     Export:
       Name: !Sub "${AWS::StackName}-ClusterName"
   ECSServiceName:
+    Description: ECS Service Name
     Value: !GetAtt ECSService.Name
     Export:
       Name: !Sub "${AWS::StackName}-ServiceName"
   ALBListenerArn:
+    Description: ALB Listener ARN
     Value: !Ref ALBListener
     Export:
       Name: !Sub "${AWS::StackName}-ListenerArn"
   TargetGroupBlueName:
-    Value: !GetAtt TargetGroupBlue.TargetGroupName
+    Description: Blue Target Group Name
+    Value: !Ref TargetGroupBlue
     Export:
       Name: !Sub "${AWS::StackName}-TGBlueName"
   TargetGroupGreenName:
-    Value: !GetAtt TargetGroupGreen.TargetGroupName
+    Description: Green Target Group Name
+    Value: !Ref TargetGroupGreen
     Export:
       Name: !Sub "${AWS::StackName}-TGGreenName"
   ALBEndpoint:
+    Description: ALB DNS Endpoint
     Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBEndpoint"
+  ECRRepositoryUri:
+    Description: ECR Repository URI
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRRepositoryUri"
+  ECRRepositoryName:
+    Description: ECR Repository Name
+    Value: !Ref ECRRepository
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRRepositoryName"
+  GitHubOidcRoleArn:
+    Description: GitHub OIDC Role ARN
+    Value: !GetAtt GitHubOidcRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-GitHubOidcRoleArn"
