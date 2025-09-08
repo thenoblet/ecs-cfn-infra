@@ -23,7 +23,7 @@ Resources:
   ECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub "cicd-ecr-repo"
+      RepositoryName: "cicd-ecr-repo"
 
   # IAM Role for GitHub Actions (OIDC)
   GitHubOidcRole:
@@ -158,6 +158,9 @@ Resources:
 
   ECSService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - ALBListener
+      - ALBTestListener
     Properties:
       ServiceName: !Sub "${AWS::StackName}-service"
       Cluster: !Ref ECSCluster
