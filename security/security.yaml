@@ -2,16 +2,18 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Provisions Security Groups for the ALB and ECS Service."
 
 Parameters:
-  VpcId:
+  VpcStackName:
     Type: String
-    Description: The VPC ID to deploy the security groups into.
+    Default: "CICD-VPC-STACK"
+    Description: "Name of the VPC stack to import values from"
 
 Resources:
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "Allow HTTP traffic from the internet"
-      VpcId: !Ref VpcId
+      VpcId: !ImportValue
+        Fn::Sub: "${VpcStackName}-VPCId"
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -25,10 +27,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "Allow traffic from the ALB"
-      VpcId: !Ref VpcId
+      VpcId: !ImportValue
+        Fn::Sub: "${VpcStackName}-VPCId"
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8080 # The application port
+          FromPort: 8080
           ToPort: 8080
           SourceSecurityGroupId: !Ref ALBSecurityGroup
       Tags:
