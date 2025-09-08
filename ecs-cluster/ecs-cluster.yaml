@@ -122,7 +122,22 @@ Resources:
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref TargetGroupBlue
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref TargetGroupBlue
+                Weight: 100
+              - TargetGroupArn: !Ref TargetGroupGreen
+                Weight: 0
+
+  ALBTestListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 8080
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupGreen
 
   # ECS Task Definition and Service
   ECSTaskDefinition:
@@ -181,6 +196,11 @@ Outputs:
     Value: !Ref ALBListener
     Export:
       Name: !Sub "${AWS::StackName}-ListenerArn"
+  ALBTestListenerArn:
+    Description: ALB Test Listener ARN for Blue/Green Deployments
+    Value: !Ref ALBTestListener
+    Export:
+      Name: !Sub "${AWS::StackName}-TestListenerArn"
   TargetGroupBlueName:
     Description: Blue Target Group Name
     Value: !Ref TargetGroupBlue
