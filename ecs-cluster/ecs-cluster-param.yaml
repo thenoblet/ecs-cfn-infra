@@ -1,0 +1,3 @@
+template-file-path: ecs-cluster/ecs-cluster.yaml
+parameters: {}
+tags: {}
