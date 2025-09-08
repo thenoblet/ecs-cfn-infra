@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Provisions the network infrastructure: VPC, Subnets, IGW, and NAT Gateways."
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-VPC"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+
+  # Private Subnets
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.0.101.0/24
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.0.102.0/24
+
+  # NAT Gateway in AZ A
+  NatGatewayEIPA:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIPA.AllocationId
+      SubnetId: !Ref PublicSubnetA
+
+  # NAT Gateway in AZ B
+  NatGatewayEIPB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIPB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+
+  # Routing
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # Private Route Table A
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  # Private Route Table B
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
+
+  # Associations
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+Outputs:
+  VPCId:
+    Description: The ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCId"
+
+  PublicSubnetIds:
+    Description: Comma-delimited list of public subnet IDs
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetIds"
+
+  PrivateSubnetIds:
+    Description: Comma-delimited list of private subnet IDs
+    Value: !Join [",", [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetIds"

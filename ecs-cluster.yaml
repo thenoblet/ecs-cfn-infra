@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Provisions the ECS Cluster, ALB, ECR Repository, OIDC Role, and ECS Service."
+
+Parameters:
+  VpcId:
+    Type: String
+  PublicSubnetIds:
+    Type: "List<AWS::EC2::Subnet::Id>"
+  PrivateSubnetIds:
+    Type: "List<AWS::EC2::Subnet::Id>"
+  ALBSecurityGroupId:
+    Type: String
+  ECSSecurityGroupId:
+    Type: String
+  GitHubOrg:
+    Type: String
+    Description: Your GitHub organization/username.
+  GitHubRepo:
+    Type: String
+    Description: Your GitHub repository name.
+
+Resources:
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${AWS::StackName}-app-repo"
+
+  # IAM Role for GitHub Actions (OIDC)
+  GitHubOidcRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GitHubOidcRoleForEcr
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                "token.actions.githubusercontent.com:sub": !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
+      Policies:
+        - PolicyName: ECRPushPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                  - "ecr:PutImage"
+                Resource: !GetAtt ECRRepository.Arn
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${AWS::StackName}-Cluster"
+
+  # Task Execution Role for Fargate
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+
+  # ALB and Target Groups
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups: [!Ref ALBSecurityGroupId]
+
+  TargetGroupBlue:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+
+  TargetGroupGreen:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupBlue
+
+  # ECS Task Definition and Service
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${AWS::StackName}-task"
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: ["FARGATE"]
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      ContainerDefinitions:
+        - Name: "my-app-container"
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${"latest"}'
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "${AWS::StackName}-service"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ECSTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      DeploymentController:
+        Type: CODE_DEPLOY
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups: [!Ref ECSSecurityGroupId]
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroupBlue
+          ContainerName: "my-app-container"
+          ContainerPort: 8080
+
+Outputs:
+  ECSClusterName:
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "${AWS::StackName}-ClusterName"
+  ECSServiceName:
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub "${AWS::StackName}-ServiceName"
+  ALBListenerArn:
+    Value: !Ref ALBListener
+    Export:
+      Name: !Sub "${AWS::StackName}-ListenerArn"
+  TargetGroupBlueName:
+    Value: !GetAtt TargetGroupBlue.TargetGroupName
+    Export:
+      Name: !Sub "${AWS::StackName}-TGBlueName"
+  TargetGroupGreenName:
+    Value: !GetAtt TargetGroupGreen.TargetGroupName
+    Export:
+      Name: !Sub "${AWS::StackName}-TGGreenName"
+  ALBEndpoint:
+    Value: !GetAtt ApplicationLoadBalancer.DNSName

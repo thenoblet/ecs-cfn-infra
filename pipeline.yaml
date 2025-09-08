@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Provisions the CI/CD pipeline using EventBridge, CodeDeploy, and CodePipeline."
+
+Parameters:
+  EcrRepoName:
+    Type: String
+  ECSClusterName:
+    Type: String
+  ECSServiceName:
+    Type: String
+  ALBListenerArn:
+    Type: String
+  TargetGroupBlueName:
+    Type: String
+  TargetGroupGreenName:
+    Type: String
+
+Resources:
+  # IAM Roles for Pipeline and CodeDeploy
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [codedeploy.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [codepipeline.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:*"
+                  - "ecr:DescribeImages"
+                  - "codedeploy:*"
+                Resource: "*"
+
+  # CodeDeploy Application and Deployment Group
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub "${AWS::StackName}-App"
+      ComputePlatform: ECS
+
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: !Sub "${AWS::StackName}-DG"
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+        DeploymentReadyOption:
+          ActionOnTimeout: CONTINUE_DEPLOYMENT
+      ECSServices:
+        - ClusterName: !Ref ECSClusterName
+          ServiceName: !Ref ECSServiceName
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroups:
+              - Name: !Ref TargetGroupBlueName
+              - Name: !Ref TargetGroupGreenName
+            ProdTrafficRoute:
+              ListenerArns:
+                - !Ref ALBListenerArn
+
+  # S3 bucket for pipeline artifacts
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # EventBridge Rule to trigger pipeline
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: "sts:AssumeRole"
+  EventBridgePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EventBridgeStartPipelinePolicy
+      Roles: [!Ref EventBridgeRole]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: "codepipeline:StartPipelineExecution"
+            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
+
+  ECRTriggerEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source: ["aws.ecr"]
+        detail-type: ["ECR Image Action"]
+        detail:
+          action-type: ["PUSH"]
+          result: ["SUCCESS"]
+          repository-name: [!Ref EcrRepoName]
+      Targets:
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
+          Id: "CodePipelineTarget"
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  # The Pipeline itself
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: ECR-Source
+              ActionTypeId:
+                Category: SOURCE
+                Owner: AWS
+                Version: "1"
+                Provider: ECR
+              Configuration:
+                RepositoryName: !Ref EcrRepoName
+                ImageTag: "latest"
+              OutputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: ECS-Deploy
+              ActionTypeId:
+                Category: DEPLOY
+                Owner: AWS
+                Version: "1"
+                Provider: CodeDeployToECS
+              Configuration:
+                ApplicationName: !Ref CodeDeployApplication
+                DeploymentGroupName: !Ref CodeDeployDeploymentGroup
+                TaskDefinitionTemplateArtifact: "SourceArtifact"
+                AppSpecTemplateArtifact: "SourceArtifact"
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
