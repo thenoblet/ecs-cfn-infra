@@ -55,6 +55,13 @@ Resources:
       ApplicationName: !Ref CodeDeployApplication
       DeploymentGroupName: !Sub "${AWS::StackName}-DG"
       ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      Revision:
+      RevisionType: S3
+      S3Location:
+        Bucket: !Ref ArtifactBucket
+        Key: "config/deployment-files.zip"
+        BundleType: zip
+
       DeploymentStyle:
         DeploymentType: BLUE_GREEN
         DeploymentOption: WITH_TRAFFIC_CONTROL
@@ -64,7 +71,7 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
-      ECSServices:
+      EcsServices:
         - ClusterName: !ImportValue
             Fn::Sub: "${ECSStackName}-ClusterName"
           ServiceName: !ImportValue
@@ -200,6 +207,7 @@ Resources:
                 - Name: ConfigArtifact
                 - Name: ImageArtifact
               RunOrder: 1
+
 Outputs:
   CodePipelineName:
     Description: CodePipeline Name
