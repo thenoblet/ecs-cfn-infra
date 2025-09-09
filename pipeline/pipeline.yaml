@@ -65,21 +65,21 @@ Resources:
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
       ECSServices:
-        - ClusterName: !ImportValue 
+        - ClusterName: !ImportValue
             Fn::Sub: "${ECSStackName}-ClusterName"
-          ServiceName: !ImportValue 
+          ServiceName: !ImportValue
             Fn::Sub: "${ECSStackName}-ServiceName"
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
-              - Name: !ImportValue 
+              - Name: !ImportValue
                   Fn::Sub: "${ECSStackName}-TGBlueName"
-              - Name: !ImportValue 
+              - Name: !ImportValue
                   Fn::Sub: "${ECSStackName}-TGGreenName"
             ProdTrafficRoute:
               ListenerArns:
-                - !ImportValue 
-                    Fn::Sub: "${ECSStackName}-ListenerArn"
+                - !ImportValue
+                  Fn::Sub: "${ECSStackName}-ListenerArn"
 
   # S3 bucket for pipeline artifacts
   ArtifactBucket:
@@ -101,7 +101,7 @@ Resources:
             Principal:
               Service: events.amazonaws.com
             Action: "sts:AssumeRole"
-            
+
   EventBridgePolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -123,8 +123,8 @@ Resources:
         detail:
           action-type: ["PUSH"]
           result: ["SUCCESS"]
-          repository-name: [!ImportValue 
-            Fn::Sub: "${ECSStackName}-ECRRepositoryName"]
+          repository-name: !ImportValue
+            Fn::Sub: "${ECSStackName}-ECRRepositoryName"
       Targets:
         - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
           Id: "CodePipelineTarget"
@@ -149,7 +149,7 @@ Resources:
                 Version: "1"
                 Provider: ECR
               Configuration:
-                RepositoryName: !ImportValue 
+                RepositoryName: !ImportValue
                   Fn::Sub: "${ECSStackName}-ECRRepositoryName"
                 ImageTag: "latest"
               OutputArtifacts:
