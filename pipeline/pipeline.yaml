@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Provisions the CI/CD pipeline using EventBridge, CodeDeploy, and CodePipeline."
+Description: "Provisions the CI/CD pipeline using: EventBridge, CodeDeploy, and CodePipeline."
 
 Parameters:
   ECSStackName:
