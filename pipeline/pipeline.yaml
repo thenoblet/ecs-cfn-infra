@@ -2,18 +2,10 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Provisions the CI/CD pipeline using EventBridge, CodeDeploy, and CodePipeline."
 
 Parameters:
-  EcrRepoName:
+  ECSStackName:
     Type: String
-  ECSClusterName:
-    Type: String
-  ECSServiceName:
-    Type: String
-  ALBListenerArn:
-    Type: String
-  TargetGroupBlueName:
-    Type: String
-  TargetGroupGreenName:
-    Type: String
+    Default: "CICD-ECS-STACK"
+    Description: "Name of the ECS stack to import values from"
 
 Resources:
   # IAM Roles for Pipeline and CodeDeploy
@@ -73,16 +65,21 @@ Resources:
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
       ECSServices:
-        - ClusterName: !Ref ECSClusterName
-          ServiceName: !Ref ECSServiceName
+        - ClusterName: !ImportValue 
+            Fn::Sub: "${ECSStackName}-ClusterName"
+          ServiceName: !ImportValue 
+            Fn::Sub: "${ECSStackName}-ServiceName"
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
-              - Name: !Ref TargetGroupBlueName
-              - Name: !Ref TargetGroupGreenName
+              - Name: !ImportValue 
+                  Fn::Sub: "${ECSStackName}-TGBlueName"
+              - Name: !ImportValue 
+                  Fn::Sub: "${ECSStackName}-TGGreenName"
             ProdTrafficRoute:
               ListenerArns:
-                - !Ref ALBListenerArn
+                - !ImportValue 
+                    Fn::Sub: "${ECSStackName}-ListenerArn"
 
   # S3 bucket for pipeline artifacts
   ArtifactBucket:
@@ -104,6 +101,7 @@ Resources:
             Principal:
               Service: events.amazonaws.com
             Action: "sts:AssumeRole"
+            
   EventBridgePolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -114,7 +112,7 @@ Resources:
         Statement:
           - Effect: Allow
             Action: "codepipeline:StartPipelineExecution"
-            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
+            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
 
   ECRTriggerEventRule:
     Type: AWS::Events::Rule
@@ -125,9 +123,10 @@ Resources:
         detail:
           action-type: ["PUSH"]
           result: ["SUCCESS"]
-          repository-name: [!Ref EcrRepoName]
+          repository-name: [!ImportValue 
+            Fn::Sub: "${ECSStackName}-ECRRepositoryName"]
       Targets:
-        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
           Id: "CodePipelineTarget"
           RoleArn: !GetAtt EventBridgeRole.Arn
 
@@ -135,6 +134,7 @@ Resources:
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
+      Name: !Sub "${AWS::StackName}-Pipeline"
       RoleArn: !GetAtt CodePipelineRole.Arn
       ArtifactStore:
         Type: S3
@@ -144,12 +144,13 @@ Resources:
           Actions:
             - Name: ECR-Source
               ActionTypeId:
-                Category: SOURCE
+                Category: Source
                 Owner: AWS
                 Version: "1"
                 Provider: ECR
               Configuration:
-                RepositoryName: !Ref EcrRepoName
+                RepositoryName: !ImportValue 
+                  Fn::Sub: "${ECSStackName}-ECRRepositoryName"
                 ImageTag: "latest"
               OutputArtifacts:
                 - Name: SourceArtifact
@@ -158,7 +159,7 @@ Resources:
           Actions:
             - Name: ECS-Deploy
               ActionTypeId:
-                Category: DEPLOY
+                Category: Deploy
                 Owner: AWS
                 Version: "1"
                 Provider: CodeDeployToECS
@@ -170,3 +171,20 @@ Resources:
               InputArtifacts:
                 - Name: SourceArtifact
               RunOrder: 1
+
+Outputs:
+  CodePipelineName:
+    Description: CodePipeline Name
+    Value: !Ref CodePipeline
+    Export:
+      Name: !Sub "${AWS::StackName}-PipelineName"
+  CodeDeployApplicationName:
+    Description: CodeDeploy Application Name
+    Value: !Ref CodeDeployApplication
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeDeployApp"
+  ArtifactBucketName:
+    Description: S3 Artifact Bucket Name
+    Value: !Ref ArtifactBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-ArtifactBucket"

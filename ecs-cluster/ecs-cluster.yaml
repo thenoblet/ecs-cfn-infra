@@ -171,6 +171,8 @@ Resources:
     DependsOn:
       - ALBListener
       - ALBTestListener
+      - GitHubOIDCProvider
+      - GitHubOidcRole
     Properties:
       ServiceName: !Sub "${AWS::StackName}-service"
       Cluster: !Ref ECSCluster
