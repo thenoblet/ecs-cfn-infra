@@ -64,7 +64,7 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
-      EcsServices:
+      ECSServices:
         - ClusterName: !ImportValue
             Fn::Sub: "${ECSStackName}-ClusterName"
           ServiceName: !ImportValue
