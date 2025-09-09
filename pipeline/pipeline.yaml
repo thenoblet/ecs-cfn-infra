@@ -117,7 +117,7 @@ Resources:
         Statement:
           - Effect: Allow
             Action: "codepipeline:StartPipelineExecution"
-            Resource: !GetAtt CodePipeline.Arn
+            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${AWS::StackName}-Pipeline"
 
   ECRTriggerEventRule:
     Type: AWS::Events::Rule
@@ -133,7 +133,7 @@ Resources:
               Fn::Sub: "${ECSStackName}-ECRRepositoryName"
           image-tag: ["latest"]
       Targets:
-        - Arn: !GetAtt CodePipeline.Arn
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${AWS::StackName}-Pipeline"
           Id: "CodePipelineTarget"
           RoleArn: !GetAtt EventBridgeRole.Arn
 
@@ -173,8 +173,6 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: "SourceArtifact"
-                AppSpecTemplateArtifact: "SourceArtifact"
               InputArtifacts:
                 - Name: SourceArtifact
               RunOrder: 1
