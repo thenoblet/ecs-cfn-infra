@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Provisions Security Groups for the ALB and ECS Service."
+Description: "Provisions Security Groups for the ALB and ECS Service, plus GitHub OIDC provider and role for ECR."
 
 Parameters:
   VpcStackName:
@@ -7,7 +7,20 @@ Parameters:
     Default: "CICD-VPC-STACK"
     Description: "Name of the VPC stack to import values from"
 
+  GitHubOrg:
+    Type: String
+    Default: "thenoblet"
+    Description: "GitHub organization or username"
+
+  GitHubRepo:
+    Type: String
+    Default: "awslab"
+    Description: "GitHub repository name"
+
 Resources:
+  # ------------------------------
+  # Security Groups
+  # ------------------------------
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -42,14 +55,53 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-ECS-SG"
 
+  # ------------------------------
+  # GitHub OIDC Provider
+  # ------------------------------
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1 # current GitHub Actions thumbprint
+
+  # ------------------------------
+  # GitHub OIDC Role for pushing to ECR
+  # ------------------------------
+  GitHubOidcRoleForEcr:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "GitHubOidcRoleForEcr-${GitHubOrg}-${GitHubRepo}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
 Outputs:
   ALBSecurityGroupId:
     Description: The ID of the ALB Security Group
     Value: !Ref ALBSecurityGroup
     Export:
       Name: !Sub "${AWS::StackName}-ALBSG-ID"
+
   ECSSecurityGroupId:
     Description: The ID of the ECS Service Security Group
     Value: !Ref ECSServiceSecurityGroup
     Export:
       Name: !Sub "${AWS::StackName}-ECSSG-ID"
+
+  GitHubOidcRoleArn:
+    Description: ARN of the GitHub OIDC Role for ECR
+    Value: !GetAtt GitHubOidcRoleForEcr.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-GitHubOidcRoleArn"
