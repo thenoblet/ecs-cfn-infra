@@ -165,7 +165,7 @@ Resources:
                   Fn::Sub: "${ECSStackName}-ECRRepositoryName"
                 ImageTag: "latest"
               OutputArtifacts:
-                - Name: SourceArtifact
+                - Name: ImageArtifact
               RunOrder: 1
             - Name: S3-Config-Source
               ActionTypeId:
