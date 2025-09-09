@@ -93,12 +93,7 @@ Resources:
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          ForwardConfig:
-            TargetGroups:
-              - TargetGroupArn: !Ref TargetGroupBlue
-                Weight: 100
-              - TargetGroupArn: !Ref TargetGroupGreen
-                Weight: 0
+          TargetGroupArn: !Ref TargetGroupBlue
 
   ALBTestListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
