@@ -145,6 +145,7 @@ Resources:
   # The Pipeline itself
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
+    DependsOn: ArtifactBucket
     Properties:
       Name: !Sub "${AWS::StackName}-Pipeline"
       RoleArn: !GetAtt CodePipelineRole.Arn
