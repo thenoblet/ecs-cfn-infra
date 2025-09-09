@@ -109,8 +109,6 @@ Resources:
 
   EventBridgePolicy:
     Type: AWS::IAM::Policy
-    DependsOn:
-      - CodePipeline
     Properties:
       PolicyName: EventBridgeStartPipelinePolicy
       Roles: [!Ref EventBridgeRole]
@@ -119,7 +117,7 @@ Resources:
         Statement:
           - Effect: Allow
             Action: "codepipeline:StartPipelineExecution"
-            Resource: !GetAtt CodePipeline.Arn
+            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
 
   ECRTriggerEventRule:
     Type: AWS::Events::Rule
@@ -138,7 +136,7 @@ Resources:
               Fn::Sub: "${ECSStackName}-ECRRepositoryName"
           image-tag: ["latest"]
       Targets:
-        - Arn: !GetAtt CodePipeline.Arn
+        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
           Id: "CodePipelineTarget"
           RoleArn: !GetAtt EventBridgeRole.Arn
 
