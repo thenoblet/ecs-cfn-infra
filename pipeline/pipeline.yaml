@@ -80,10 +80,6 @@ Resources:
               ListenerArns:
                 - !ImportValue
                   Fn::Sub: "${ECSStackName}-ListenerArn"
-            TestTrafficRoute:
-            ListenerArns:
-              - !ImportValue
-                Fn::Sub: "${ECSStackName}-TestListenerArn"
 
   # S3 bucket for pipeline artifacts
   ArtifactBucket:
