@@ -55,13 +55,6 @@ Resources:
       ApplicationName: !Ref CodeDeployApplication
       DeploymentGroupName: !Sub "${AWS::StackName}-DG"
       ServiceRoleArn: !GetAtt CodeDeployRole.Arn
-      Revision:
-        RevisionType: S3
-        S3Location:
-          Bucket: !Ref ArtifactBucket
-          Key: "config/deployment-files.zip"
-          BundleType: zip
-
       DeploymentStyle:
         DeploymentType: BLUE_GREEN
         DeploymentOption: WITH_TRAFFIC_CONTROL
@@ -172,19 +165,7 @@ Resources:
                   Fn::Sub: "${ECSStackName}-ECRRepositoryName"
                 ImageTag: "latest"
               OutputArtifacts:
-                - Name: ImageArtifact
-              RunOrder: 1
-            - Name: S3-Config-Source
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: "1"
-                Provider: S3
-              Configuration:
-                S3Bucket: !Ref ArtifactBucket
-                S3ObjectKey: "config/deployment-files.zip"
-              OutputArtifacts:
-                - Name: ConfigArtifact
+                - Name: SourceArtifact
               RunOrder: 1
         - Name: Deploy
           Actions:
@@ -197,15 +178,10 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: "ConfigArtifact"
-                TaskDefinitionTemplatePath: "taskdef.json"
-                AppSpecTemplateArtifact: "ConfigArtifact"
-                AppSpecTemplatePath: "appspec.yml"
-                Image1ArtifactName: "ImageArtifact"
+                Image1ArtifactName: "SourceArtifact"
                 Image1ContainerName: "awslab-app-container"
               InputArtifacts:
-                - Name: ConfigArtifact
-                - Name: ImageArtifact
+                - Name: "SourceArtifact"
               RunOrder: 1
 
 Outputs:
