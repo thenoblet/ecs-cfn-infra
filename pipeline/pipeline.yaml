@@ -167,6 +167,18 @@ Resources:
               OutputArtifacts:
                 - Name: SourceArtifact
               RunOrder: 1
+            - Name: S3-Config-Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: "1"
+                Provider: S3
+              Configuration:
+                S3Bucket: !Ref ArtifactBucket
+                S3ObjectKey: "config/deployment-files.zip"
+              OutputArtifacts:
+                - Name: ConfigArtifact
+              RunOrder: 1
         - Name: Deploy
           Actions:
             - Name: ECS-Deploy
@@ -178,12 +190,16 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: "SourceArtifact"
-                AppSpecTemplateArtifact: "SourceArtifact"
+                TaskDefinitionTemplateArtifact: "ConfigArtifact"
+                TaskDefinitionTemplatePath: "taskdef.json"
+                AppSpecTemplateArtifact: "ConfigArtifact"
+                AppSpecTemplatePath: "appspec.yml"
+                Image1ArtifactName: "ImageArtifact"
+                Image1ImageURI: "IMAGE_URI"
               InputArtifacts:
-                - Name: SourceArtifact
+                - Name: ConfigArtifact
+                - Name: ImageArtifact
               RunOrder: 1
-
 Outputs:
   CodePipelineName:
     Description: CodePipeline Name
