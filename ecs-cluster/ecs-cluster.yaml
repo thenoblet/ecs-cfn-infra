@@ -124,7 +124,7 @@ Resources:
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       ContainerDefinitions:
         - Name: "awslab-app-container"
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:latest"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
@@ -134,6 +134,7 @@ Resources:
     DependsOn:
       - ALBListener
       - ALBTestListener
+      - ECRRepository
     Properties:
       ServiceName: !Sub "${AWS::StackName}-service"
       Cluster: !Ref ECSCluster
