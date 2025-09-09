@@ -124,7 +124,7 @@ Resources:
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       ContainerDefinitions:
         - Name: "awslab-app-container"
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:latest"
+          Image: !Sub "${ECRRepository.RepositoryUri}:latest"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
