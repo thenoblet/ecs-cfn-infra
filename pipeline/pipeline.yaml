@@ -89,6 +89,8 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
 
   # EventBridge Rule to trigger pipeline
   EventBridgeRole:
@@ -101,6 +103,9 @@ Resources:
             Principal:
               Service: events.amazonaws.com
             Action: "sts:AssumeRole"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EventBridgeRole"
 
   EventBridgePolicy:
     Type: AWS::IAM::Policy
@@ -112,7 +117,7 @@ Resources:
         Statement:
           - Effect: Allow
             Action: "codepipeline:StartPipelineExecution"
-            Resource: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
+            Resource: !GetAtt CodePipeline.Arn
 
   ECRTriggerEventRule:
     Type: AWS::Events::Rule
@@ -123,10 +128,12 @@ Resources:
         detail:
           action-type: ["PUSH"]
           result: ["SUCCESS"]
-          repository-name: !ImportValue
-            Fn::Sub: "${ECSStackName}-ECRRepositoryName"
+          repository-name:
+            - !ImportValue
+              Fn::Sub: "${ECSStackName}-ECRRepositoryName"
+          image-tag: ["latest"]
       Targets:
-        - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}"
+        - Arn: !GetAtt CodePipeline.Arn
           Id: "CodePipelineTarget"
           RoleArn: !GetAtt EventBridgeRole.Arn
 
@@ -162,7 +169,7 @@ Resources:
                 Category: Deploy
                 Owner: AWS
                 Version: "1"
-                Provider: CodeDeployToECS
+                Provider: CodeDeploy
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
