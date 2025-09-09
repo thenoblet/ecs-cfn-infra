@@ -25,6 +25,16 @@ Resources:
     Properties:
       RepositoryName: "cicd-ecr-repo"
 
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        # Root CA thumbprint for GitHub's OIDC
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
   # IAM Role for GitHub Actions (OIDC)
   GitHubOidcRole:
     Type: AWS::IAM::Role
@@ -35,7 +45,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+              Federated: !Ref GitHubOidcProvider
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
               StringLike:
