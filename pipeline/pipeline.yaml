@@ -195,7 +195,7 @@ Resources:
                 AppSpecTemplateArtifact: "ConfigArtifact"
                 AppSpecTemplatePath: "appspec.yml"
                 Image1ArtifactName: "ImageArtifact"
-                Image1ImageURI: "IMAGE_URI"
+                Image1ContainerName: "awslab-app-container"
               InputArtifacts:
                 - Name: ConfigArtifact
                 - Name: ImageArtifact
