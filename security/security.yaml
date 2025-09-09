@@ -73,7 +73,7 @@ Resources:
   GitHubOidcRoleForEcr:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "GitHubOidcRoleForEcr"
+      RoleName: !Sub "GitHubOidcRoleForEcr-Name"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
