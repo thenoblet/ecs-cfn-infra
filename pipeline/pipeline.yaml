@@ -4,7 +4,7 @@ Description: "Provisions the CI/CD pipeline using EventBridge, CodeDeploy, CodeP
 Parameters:
   ECSStackName:
     Type: String
-    Default: "CICD-ECS-CLUSTER-STACK"
+    Default: "CICD-ECS-STK"
     Description: "Name of the ECS stack to import values from"
 
 Resources:
