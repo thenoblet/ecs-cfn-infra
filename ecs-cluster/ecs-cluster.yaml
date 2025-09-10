@@ -183,6 +183,18 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-TestListenerArn"
 
+  TargetGroupBlueNewName:
+    Description: Blue Target Group Name
+    Value: !GetAtt TargetGroupBlue.TargetGroupName
+    Export:
+      Name: !Sub "${AWS::StackName}-TGBlueNewName"
+
+  TargetGroupGreenNewName:
+    Description: Green Target Group Name
+    Value: !GetAtt TargetGroupGreen.TargetGroupName
+    Export:
+      Name: !Sub "${AWS::StackName}-TGGreenNewName"
+
   TargetGroupBlueName:
     Description: Blue Target Group Name
     Value: !GetAtt TargetGroupBlue.TargetGroupName
