@@ -64,7 +64,7 @@ Resources:
   TargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub "${AWS::StackName}-TG-Blue"
+      Name: !Sub "${AWS::StackName}-TG-B"
       VpcId: !ImportValue
         Fn::Sub: "${VpcStackName}-VPCId"
       Port: 8080
@@ -76,7 +76,7 @@ Resources:
   TargetGroupGreen:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub "${AWS::StackName}-TG-Green"
+      Name: !Sub "${AWS::StackName}-TG-G"
       VpcId: !ImportValue
         Fn::Sub: "${VpcStackName}-VPCId"
       Port: 8080
