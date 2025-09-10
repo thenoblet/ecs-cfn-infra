@@ -46,28 +46,6 @@ Resources:
                   - "codebuild:StartBuild"
                 Resource: "*"
 
-  CodeBuildRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [codebuild.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      Policies:
-        - PolicyName: CodeBuildAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "ecs:DescribeTaskDefinition"
-                  - "ecs:RegisterTaskDefinition"
-                  - "iam:PassRole"
-                  - "s3:*"
-                Resource: "*"
-
   # -----------------------------
   # CodeDeploy Application + DG
   # -----------------------------
@@ -121,80 +99,6 @@ Resources:
               SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
-
-  # -----------------------------
-  # CodeBuild Project (ConfigGenerator)
-  # -----------------------------
-  ConfigGeneratorProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Sub "${AWS::StackName}-ConfigGenerator"
-      ServiceRole: !GetAtt CodeBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:6.0
-        Type: LINUX_CONTAINER
-      Source:
-        Type: CODEPIPELINE
-      TimeoutInMinutes: 5
-      Description: "Generates appspec.yml and taskdef.json for ECS deployments"
-      EnvironmentVariables:
-        - Name: ECS_TASK_DEFINITION
-          Value: !Sub "${ECSStackName}-task"
-        - Name: CONTAINER_NAME
-          Value: "awslab-app-container"
-      # Inline buildspec
-      BuildSpec: |
-        version: 0.2
-        phases:
-          build:
-            commands:
-              - echo "Generating deployment files..."
-              - IMAGE_URI=$(cat imagedefinitions.json | jq -r '.[0].imageUri')
-              - |
-                cat > appspec.yml <<EOF
-                version: 0.0
-                Resources:
-                  - TargetService:
-                      Type: AWS::ECS::Service
-                      Properties:
-                        TaskDefinition: ${ECS_TASK_DEFINITION}
-                        LoadBalancerInfo:
-                          ContainerName: ${CONTAINER_NAME}
-                          ContainerPort: 8080
-                EOF
-              - |
-                cat > taskdef.json <<EOF
-                {
-                  "family": "${ECS_TASK_DEFINITION}",
-                  "networkMode": "awsvpc",
-                  "requiresCompatibilities": ["FARGATE"],
-                  "cpu": "256",
-                  "memory": "512",
-                  "containerDefinitions": [
-                    {
-                      "name": "${CONTAINER_NAME}",
-                      "image": "$IMAGE_URI",
-                      "essential": true,
-                      "portMappings": [
-                        {
-                          "containerPort": 8080,
-                          "protocol": "tcp"
-                        }
-                      ]
-                    }
-                  ]
-                }
-                EOF
-              - echo "Files generated:"
-              - ls -la
-        artifacts:
-          files:
-            - appspec.yml
-            - taskdef.json
-            - imagedefinitions.json
 
   # -----------------------------
   # EventBridge Rule
@@ -259,33 +163,18 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: ECR-Source
+            - Name: S3-Source
               ActionTypeId:
                 Category: Source
                 Owner: AWS
                 Version: "1"
-                Provider: ECR
+                Provider: S3
               Configuration:
-                RepositoryName: !ImportValue
-                  Fn::Sub: "${ECSStackName}-ECRRepositoryName"
-                ImageTag: "latest"
+                S3Bucket: !Ref ArtifactBucket
+                S3ObjectKey: "deployment-files.zip"
+                PollForSourceChanges: false
               OutputArtifacts:
                 - Name: SourceArtifact
-              RunOrder: 1
-        - Name: Build
-          Actions:
-            - Name: Generate-Config
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: "1"
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Ref ConfigGeneratorProject
-              InputArtifacts:
-                - Name: SourceArtifact
-              OutputArtifacts:
-                - Name: ConfigArtifact
               RunOrder: 1
         - Name: Deploy
           Actions:
@@ -298,14 +187,13 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: ConfigArtifact
+                TaskDefinitionTemplateArtifact: SourceArtifact
                 TaskDefinitionTemplatePath: "taskdef.json"
-                AppSpecTemplateArtifact: ConfigArtifact
+                AppSpecTemplateArtifact: SourceArtifact
                 AppSpecTemplatePath: "appspec.yml"
               InputArtifacts:
-                - Name: ConfigArtifact
+                - Name: SourceArtifact
               RunOrder: 1
-
 # -----------------------------
 # Outputs
 # -----------------------------
