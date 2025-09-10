@@ -83,7 +83,7 @@ Resources:
         TargetGroupPairInfoList:
           - TargetGroups:
               - Name: !ImportValue
-                  Fn::Sub: "${ECSStackName}-TGBlueName"
+                  Fn::Sub: "${ECSStackName}-TGBlueFullName"
               - Name: !ImportValue
                   Fn::Sub: "${ECSStackName}-TGGreenName"
             ProdTrafficRoute:
