@@ -40,10 +40,8 @@ Resources:
               - Effect: Allow
                 Action:
                   - "s3:*"
-                  - "ecr:DescribeImages"
+                  - "ecr:*"
                   - "codedeploy:*"
-                  - "codebuild:BatchGetBuilds"
-                  - "codebuild:StartBuild"
                 Resource: "*"
 
   # -----------------------------
