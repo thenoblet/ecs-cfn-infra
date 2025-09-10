@@ -41,6 +41,7 @@ Resources:
                 Action:
                   - "s3:*"
                   - "ecr:*"
+                  - "ecs:*"
                   - "codedeploy:*"
                 Resource: "*"
 
