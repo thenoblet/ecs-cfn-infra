@@ -195,30 +195,6 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-TGGreenNewName"
 
-  TargetGroupBlueName:
-    Description: Blue Target Group Name
-    Value: !Ref TargetGroupBlue
-    Export:
-      Name: !Sub "${AWS::StackName}-TGBlueName"
-
-  TargetGroupGreenName:
-    Description: Green Target Group Name
-    Value: !Ref TargetGroupGreen
-    Export:
-      Name: !Sub "${AWS::StackName}-TGGreenName"
-
-  TGBlueFullName:
-    Description: Target Group Blue Full Name
-    Value: !GetAtt TargetGroupBlue.TargetGroupFullName
-    Export:
-      Name: !Sub "${AWS::StackName}-TGBlueFullName"
-
-  TGGreenFullName:
-    Description: Target Group Green Full Name
-    Value: !GetAtt TargetGroupGreen.TargetGroupFullName
-    Export:
-      Name: !Sub "${AWS::StackName}-TGGreenFullName"
-
   ALBEndpoint:
     Description: ALB DNS Endpoint
     Value: !GetAtt ApplicationLoadBalancer.DNSName
