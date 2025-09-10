@@ -44,6 +44,11 @@ Resources:
                   - "ecs:*"
                   - "codedeploy:*"
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "iam:PassRole"
+                Resource: !ImportValue
+                  Fn::Sub: "${ECSStackName}-TaskExecRoleArn"
 
   # -----------------------------
   # CodeDeploy Application + DG

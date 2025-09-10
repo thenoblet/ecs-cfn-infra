@@ -165,6 +165,12 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-ServiceName"
 
+  ECSTaskExecutionRoleArn:
+    Description: Task exec. role
+    Value: !GetAtt ECSTaskExecutionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TaskExecRoleArn"
+
   ALBListenerArn:
     Description: ALB Listener ARN
     Value: !Ref ALBListener
