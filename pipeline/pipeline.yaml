@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Provisions the CI/CD pipeline using: EventBridge, CodeDeploy, and CodePipeline."
+Description: "Provisions the CI/CD pipeline using EventBridge, CodeDeploy, CodePipeline, and CodeBuild."
 
 Parameters:
   ECSStackName:
@@ -8,7 +8,9 @@ Parameters:
     Description: "Name of the ECS stack to import values from"
 
 Resources:
-  # IAM Roles for Pipeline and CodeDeploy
+  # -----------------------------
+  # IAM Roles
+  # -----------------------------
   CodeDeployRole:
     Type: AWS::IAM::Role
     Properties:
@@ -40,9 +42,35 @@ Resources:
                   - "s3:*"
                   - "ecr:DescribeImages"
                   - "codedeploy:*"
+                  - "codebuild:BatchGetBuilds"
+                  - "codebuild:StartBuild"
                 Resource: "*"
 
-  # CodeDeploy Application and Deployment Group
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [codebuild.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ecs:DescribeTaskDefinition"
+                  - "ecs:RegisterTaskDefinition"
+                  - "iam:PassRole"
+                  - "s3:*"
+                Resource: "*"
+
+  # -----------------------------
+  # CodeDeploy Application + DG
+  # -----------------------------
   CodeDeployApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
@@ -81,7 +109,9 @@ Resources:
                 - !ImportValue
                   Fn::Sub: "${ECSStackName}-ListenerArn"
 
-  # S3 bucket for pipeline artifacts
+  # -----------------------------
+  # Artifact Bucket
+  # -----------------------------
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -92,7 +122,83 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  # EventBridge Rule to trigger pipeline
+  # -----------------------------
+  # CodeBuild Project (ConfigGenerator)
+  # -----------------------------
+  ConfigGeneratorProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-ConfigGenerator"
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:6.0
+        Type: LINUX_CONTAINER
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 5
+      Description: "Generates appspec.yml and taskdef.json for ECS deployments"
+      EnvironmentVariables:
+        - Name: ECS_TASK_DEFINITION
+          Value: !Sub "${ECSStackName}-task"
+        - Name: CONTAINER_NAME
+          Value: "awslab-app-container"
+      # Inline buildspec
+      BuildSpec: |
+        version: 0.2
+        phases:
+          build:
+            commands:
+              - echo "Generating deployment files..."
+              - IMAGE_URI=$(cat imagedefinitions.json | jq -r '.[0].imageUri')
+              - |
+                cat > appspec.yml <<EOF
+                version: 0.0
+                Resources:
+                  - TargetService:
+                      Type: AWS::ECS::Service
+                      Properties:
+                        TaskDefinition: ${ECS_TASK_DEFINITION}
+                        LoadBalancerInfo:
+                          ContainerName: ${CONTAINER_NAME}
+                          ContainerPort: 8080
+                EOF
+              - |
+                cat > taskdef.json <<EOF
+                {
+                  "family": "${ECS_TASK_DEFINITION}",
+                  "networkMode": "awsvpc",
+                  "requiresCompatibilities": ["FARGATE"],
+                  "cpu": "256",
+                  "memory": "512",
+                  "containerDefinitions": [
+                    {
+                      "name": "${CONTAINER_NAME}",
+                      "image": "$IMAGE_URI",
+                      "essential": true,
+                      "portMappings": [
+                        {
+                          "containerPort": 8080,
+                          "protocol": "tcp"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                EOF
+              - echo "Files generated:"
+              - ls -la
+        artifacts:
+          files:
+            - appspec.yml
+            - taskdef.json
+            - imagedefinitions.json
+
+  # -----------------------------
+  # EventBridge Rule
+  # -----------------------------
   EventBridgeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -103,9 +209,6 @@ Resources:
             Principal:
               Service: events.amazonaws.com
             Action: "sts:AssumeRole"
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-EventBridgeRole"
 
   EventBridgePolicy:
     Type: AWS::IAM::Policy
@@ -136,13 +239,14 @@ Resources:
               Fn::Sub: "${ECSStackName}-ECRRepositoryName"
           image-tag:
             - latest
-            - "*"
       Targets:
         - Arn: !Sub "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}"
           Id: "CodePipelineTarget"
           RoleArn: !GetAtt EventBridgeRole.Arn
 
-  # The Pipeline itself
+  # -----------------------------
+  # CodePipeline
+  # -----------------------------
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     DependsOn: ArtifactBucket
@@ -168,6 +272,21 @@ Resources:
               OutputArtifacts:
                 - Name: SourceArtifact
               RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Generate-Config
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref ConfigGeneratorProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: ConfigArtifact
+              RunOrder: 1
         - Name: Deploy
           Actions:
             - Name: ECS-Deploy
@@ -179,11 +298,17 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                ImageDefinitionTemplate: "SourceArtifact::imagedefinitions.json"
+                TaskDefinitionTemplateArtifact: ConfigArtifact
+                TaskDefinitionTemplatePath: "taskdef.json"
+                AppSpecTemplateArtifact: ConfigArtifact
+                AppSpecTemplatePath: "appspec.yml"
               InputArtifacts:
-                - Name: "SourceArtifact"
+                - Name: ConfigArtifact
               RunOrder: 1
 
+# -----------------------------
+# Outputs
+# -----------------------------
 Outputs:
   CodePipelineName:
     Description: CodePipeline Name
