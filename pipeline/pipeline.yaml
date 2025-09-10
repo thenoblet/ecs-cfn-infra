@@ -179,8 +179,7 @@ Resources:
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                Image1ArtifactName: "SourceArtifact"
-                Image1ContainerName: "awslab-app-container"
+                ImageDefinitionTemplate: "SourceArtifact::imagedefinitions.json"
               InputArtifacts:
                 - Name: "SourceArtifact"
               RunOrder: 1
