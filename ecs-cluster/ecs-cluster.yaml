@@ -185,13 +185,13 @@ Outputs:
 
   TargetGroupBlueName:
     Description: Blue Target Group Name
-    Value: !Ref TargetGroupBlue
+    Value: !GetAtt TargetGroupBlue.TargetGroupName
     Export:
       Name: !Sub "${AWS::StackName}-TGBlueName"
 
   TargetGroupGreenName:
     Description: Green Target Group Name
-    Value: !Ref TargetGroupGreen
+    Value: !GetAtt TargetGroupGreen.TargetGroupName
     Export:
       Name: !Sub "${AWS::StackName}-TGGreenName"
 
