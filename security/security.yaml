@@ -65,113 +65,7 @@ Resources:
       ClientIdList:
         - sts.amazonaws.com
       ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1 # current GitHub Actions thumbprint
-
-  # ------------------------------
-  # GitHub OIDC Role for pushing to ECR
-  # ------------------------------
-  GitHubOidcRoleForEcr:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "GitHubOidcRoleForEcr-Name"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Federated: !Ref GitHubOIDCProvider
-            Action: sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                token.actions.githubusercontent.com:aud: "sts.amazonaws.com"
-              StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess
-
-
-Outputs:
-  ALBSecurityGroupId:
-    Description: The ID of the ALB Security Group
-    Value: !Ref ALBSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-ALBSG-ID"
-
-  ECSSecurityGroupId:
-    Description: The ID of the ECS Service Security Group
-    Value: !Ref ECSServiceSecurityGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-ECSSG-ID"
-AWSTemplateFormatVersion: "2010-09-09"
-Description: "Provisions Security Groups for the ALB and ECS Service, plus GitHub OIDC provider and role for ECR."
-
-Parameters:
-  VpcStackName:
-    Type: String
-    Default: "CICD-VPC-STACK"
-    Description: "Name of the VPC stack to import values from"
-
-  GitHubOrg:
-    Type: String
-    Default: "thenoblet"
-    Description: "GitHub organization or username"
-
-  GitHubRepo:
-    Type: String
-    Default: "awslab"
-    Description: "GitHub repository name"
-
-Resources:
-  # ------------------------------
-  # Security Groups
-  # ------------------------------
-  ALBSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: "Allow HTTP traffic from the internet"
-      VpcId: !ImportValue
-        Fn::Sub: "${VpcStackName}-VPCId"
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-ALB-SG"
-
-  ECSServiceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: "Allow traffic from the ALB"
-      VpcId: !ImportValue
-        Fn::Sub: "${VpcStackName}-VPCId"
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          SourceSecurityGroupId: !Ref ALBSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-ECS-SG"
-
-  # ------------------------------
-  # GitHub OIDC Provider
-  # ------------------------------
-  GitHubOIDCProvider:
-    Type: AWS::IAM::OIDCProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1 # current GitHub Actions thumbprint
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
 
   # ------------------------------
   # GitHub OIDC Role for pushing to ECR
@@ -192,6 +86,8 @@ Resources:
                 token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess
 
 Outputs:
   ALBSecurityGroupId:
