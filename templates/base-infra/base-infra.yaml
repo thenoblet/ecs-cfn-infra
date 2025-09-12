@@ -141,6 +141,19 @@ Resources:
       SubnetId: !Ref PrivateSubnetB
       RouteTableId: !Ref PrivateRouteTableB
 
+  AutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
+
   # ------------------------------
   # ECR Repository
   # ------------------------------
@@ -162,6 +175,15 @@ Resources:
               SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
+
+  # -----------------------------
+  # Cloud Watch Log Group
+  # -----------------------------
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/awslab-app-container
+      RetentionInDays: 30
 
 Outputs:
   VPCId:
@@ -188,8 +210,19 @@ Outputs:
     Export:
       Name: "${AWS::StackName}-ECRRepositoryName"
 
+  AutoScalingRoleArn:
+    Description: Auto Scaling Role ARN
+    Value: !GetAtt AutoScalingRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-AutoScalingRoleArn
+
   ArtifactBucketName:
     Description: Name of the artifact bucket needed to store the artifacts (appspec files etc)
     Value: !Ref ArtifactBucket
     Export:
       Name: !Sub "${AWS::StackName}-ArtifactBucket"
+
+  CloudWatchLogsGroupName:
+    Value: !Ref CloudWatchLogsGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudWatchLogsGroup"

@@ -156,7 +156,7 @@ Resources:
         Type: S3
         Location:
           - !ImportValue
-            Fn::Sub: ${CICD-BASE-STK}-ArtifactBucket
+            Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
       Stages:
         - Name: Source
           Actions:
@@ -167,7 +167,9 @@ Resources:
                 Version: "1"
                 Provider: S3
               Configuration:
-                S3Bucket: ${CICD-BASE-STK}-ArtifactBucket
+                S3Bucket:
+                  - !ImportValue
+                    Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
                 S3ObjectKey: "deployment-files.zip"
                 PollForSourceChanges: false
               OutputArtifacts:

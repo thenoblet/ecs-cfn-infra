@@ -6,11 +6,6 @@ Parameters:
     Type: String
     Default: "awslab-app-container"
 
-  VpcStackName:
-    Type: String
-    Default: "CICD-VPC-STACK"
-    Description: "Name of the VPC stack to import values from"
-
   SecurityStackName:
     Type: String
     Default: "CICD-SECURITY-STACK"
@@ -56,7 +51,7 @@ Resources:
       Subnets: !Split
         - ","
         - !ImportValue
-          Fn::Sub: "${VpcStackName}-PublicSubnetIds"
+          Fn::Sub: "${BaseInfraStackName}-PublicSubnetIds"
       SecurityGroups:
         - !ImportValue
           Fn::Sub: "${SecurityStackName}-ALBSG-ID"
@@ -67,7 +62,7 @@ Resources:
     Properties:
       Name: !Sub "${AWS::StackName}-TG-B"
       VpcId: !ImportValue
-        Fn::Sub: "${VpcStackName}-VPCId"
+        Fn::Sub: "${BaseInfraStackName}-VPCId"
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -79,7 +74,7 @@ Resources:
     Properties:
       Name: !Sub "${AWS::StackName}-TG-G"
       VpcId: !ImportValue
-        Fn::Sub: "${VpcStackName}-VPCId"
+        Fn::Sub: "${BaseInfraStackName}-VPCId"
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -126,6 +121,14 @@ Resources:
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                - !ImportValue
+                  Fn::Sub: "${CICD-BASE-STK}-CloudWatchLogsGroup"
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
 
   ECSService:
     Type: AWS::ECS::Service
@@ -146,7 +149,7 @@ Resources:
           Subnets: !Split
             - ","
             - !ImportValue
-              Fn::Sub: "${VpcStackName}-PrivateSubnetIds"
+              Fn::Sub: "${BaseInfraStackName}-PrivateSubnetIds"
           SecurityGroups:
             - !ImportValue
               Fn::Sub: "${SecurityStackName}-ECSSG-ID"
@@ -154,6 +157,31 @@ Resources:
         - TargetGroupArn: !Ref TargetGroupBlue
           ContainerName: !Sub ECSContainerName
           ContainerPort: 8080
+
+  ECSServiceAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: ECSService
+    Properties:
+      MaxCapacity: 4
+      MinCapacity: 1
+      ResourceId: !Sub service/${ECSCluster}/${ECSService.Name}
+      RoleARN:
+        Fn::ImportValue: !Sub ${BaseInfraStackName}-AutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ECSServiceScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: CPUScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ECSServiceAutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 50.0
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
 
 Outputs:
   ECSClusterName:
