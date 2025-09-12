@@ -107,8 +107,3 @@ Outputs:
     Value: !GetAtt GitHubOidcRoleForEcr.Arn
     Export:
       Name: !Sub "${AWS::StackName}-GitHubOidcRoleArn"
-  GitHubOidcRoleArn:
-    Description: ARN of the GitHub OIDC Role for ECR
-    Value: !GetAtt GitHubOidcRoleForEcr.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-GitHubOidcRoleArn"

@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Provisions the ECS Cluster, ALB, ECR Repository, and ECS Service."
 
 Parameters:
+  ECSContainerName:
+    Type: String
+    Default: "awslab-app-container"
+
   VpcStackName:
     Type: String
     Default: "CICD-VPC-STACK"
@@ -12,15 +16,12 @@ Parameters:
     Default: "CICD-SECURITY-STACK"
     Description: "Name of the Security Groups stack to import values from"
 
-Resources:
-  # ------------------------------
-  # ECR Repository
-  # ------------------------------
-  ECRRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: "cicd-ecr-repo"
+  BaseInfraStackName:
+    Type: String
+    Default: "CICD-BASE-STK"
+    Description: "Name of the Base infra. stack to import values from"
 
+Resources:
   # ------------------------------
   # ECS Cluster
   # ------------------------------
@@ -119,7 +120,9 @@ Resources:
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       ContainerDefinitions:
         - Name: "awslab-app-container"
-          Image: !Sub "${ECRRepository.RepositoryUri}:latest"
+          Image:
+            - !ImportValue
+              Fn::Sub: "${CICD-BASE-STK}-ECRRepositoryName.RepositoryUri:latest"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
@@ -135,7 +138,7 @@ Resources:
       Cluster: !Ref ECSCluster
       TaskDefinition: !Ref ECSTaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 2
+      DesiredCount: 1
       DeploymentController:
         Type: CODE_DEPLOY
       NetworkConfiguration:
@@ -149,10 +152,8 @@ Resources:
               Fn::Sub: "${SecurityStackName}-ECSSG-ID"
       LoadBalancers:
         - TargetGroupArn: !Ref TargetGroupBlue
-          ContainerName: "awslab-app-container"
+          ContainerName: !Sub ECSContainerName
           ContainerPort: 8080
-
-  LogGr
 
 Outputs:
   ECSClusterName:

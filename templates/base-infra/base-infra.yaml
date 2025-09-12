@@ -141,6 +141,28 @@ Resources:
       SubnetId: !Ref PrivateSubnetB
       RouteTableId: !Ref PrivateRouteTableB
 
+  # ------------------------------
+  # ECR Repository
+  # ------------------------------
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "cicd-ecr-repo"
+
+  # -----------------------------
+  # Artifact Bucket
+  # -----------------------------
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: artif-bkt
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
 Outputs:
   VPCId:
     Description: The ID of the VPC
@@ -159,3 +181,15 @@ Outputs:
     Value: !Join [",", [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
     Export:
       Name: !Sub "${AWS::StackName}-PrivateSubnetIds"
+
+  ECRRepositoryName:
+    Description: Name of ECR repository needed to store the docker image
+    Value: !Ref ECRRepository
+    Export:
+      Name: "${AWS::StackName}-ECRRepositoryName"
+
+  ArtifactBucketName:
+    Description: Name of the artifact bucket needed to store the artifacts (appspec files etc)
+    Value: !Ref ArtifactBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-ArtifactBucket"

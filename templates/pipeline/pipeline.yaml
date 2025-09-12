@@ -7,6 +7,11 @@ Parameters:
     Default: "CICD-ECS-STK"
     Description: "Name of the ECS stack to import values from"
 
+  BaseInfraStackName:
+    Type: String
+    Default: "CICD-BASE-STK"
+    Description: "Name of the Base infra. stack to import values from"
+
 Resources:
   # -----------------------------
   # IAM Roles
@@ -92,20 +97,6 @@ Resources:
                   Fn::Sub: "${ECSStackName}-ListenerArn"
 
   # -----------------------------
-  # Artifact Bucket
-  # -----------------------------
-  ArtifactBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: artif-bkt
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      VersioningConfiguration:
-        Status: Enabled
-
-  # -----------------------------
   # EventBridge Rule
   # -----------------------------
   EventBridgeRole:
@@ -158,13 +149,14 @@ Resources:
   # -----------------------------
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
-    DependsOn: ArtifactBucket
     Properties:
       Name: !Sub "${AWS::StackName}-Pipeline"
       RoleArn: !GetAtt CodePipelineRole.Arn
       ArtifactStore:
         Type: S3
-        Location: !Ref ArtifactBucket
+        Location:
+          - !ImportValue
+            Fn::Sub: ${CICD-BASE-STK}-ArtifactBucket
       Stages:
         - Name: Source
           Actions:
@@ -175,7 +167,7 @@ Resources:
                 Version: "1"
                 Provider: S3
               Configuration:
-                S3Bucket: !Ref ArtifactBucket
+                S3Bucket: ${CICD-BASE-STK}-ArtifactBucket
                 S3ObjectKey: "deployment-files.zip"
                 PollForSourceChanges: false
               OutputArtifacts:
@@ -213,8 +205,3 @@ Outputs:
     Value: !Ref CodeDeployApplication
     Export:
       Name: !Sub "${AWS::StackName}-CodeDeployApp"
-  ArtifactBucketName:
-    Description: S3 Artifact Bucket Name
-    Value: !Ref ArtifactBucket
-    Export:
-      Name: !Sub "${AWS::StackName}-ArtifactBucket"
