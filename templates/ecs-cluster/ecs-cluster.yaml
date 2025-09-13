@@ -250,15 +250,3 @@ Outputs:
     Value: !GetAtt ApplicationLoadBalancer.DNSName
     Export:
       Name: !Sub "${AWS::StackName}-ALBEndpoint"
-
-  ECRRepositoryUri:
-    Description: ECR Repository URI
-    Value: !GetAtt ECRRepository.RepositoryUri
-    Export:
-      Name: !Sub "${AWS::StackName}-ECRRepositoryUri"
-
-  ECRRepositoryName:
-    Description: ECR Repository Name
-    Value: !Ref ECRRepository
-    Export:
-      Name: !Sub "${AWS::StackName}-ECRRepositoryName"

@@ -210,6 +210,12 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-ECRRepositoryName"
 
+  ECRRepositoryUri:
+    Description: ECR Repository URI
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRRepositoryUri"
+
   AutoScalingRoleArn:
     Description: Auto Scaling Role ARN
     Value: !GetAtt AutoScalingRole.Arn
