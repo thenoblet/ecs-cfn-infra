@@ -208,7 +208,7 @@ Outputs:
     Description: Name of ECR repository needed to store the docker image
     Value: !Ref ECRRepository
     Export:
-      Name: "${AWS::StackName}-ECRRepositoryName"
+      Name: !Sub "${AWS::StackName}-ECRRepositoryName"
 
   AutoScalingRoleArn:
     Description: Auto Scaling Role ARN
