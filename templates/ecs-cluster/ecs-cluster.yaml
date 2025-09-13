@@ -141,7 +141,6 @@ Resources:
     DependsOn:
       - ALBListener
       - ALBTestListener
-      - ECRRepository
     Properties:
       ServiceName: !Sub "${AWS::StackName}-service"
       Cluster: !Ref ECSCluster
