@@ -214,7 +214,7 @@ Outputs:
     Description: Auto Scaling Role ARN
     Value: !GetAtt AutoScalingRole.Arn
     Export:
-      Name: !Sub ${AWS::StackName}-AutoScalingRoleArn
+      Name: !Sub "${AWS::StackName}-AutoScalingRoleArn"
 
   ArtifactBucketName:
     Description: Name of the artifact bucket needed to store the artifacts (appspec files etc)

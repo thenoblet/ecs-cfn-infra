@@ -82,8 +82,10 @@ Resources:
               Federated: !Ref GitHubOIDCProvider
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: "sts.amazonaws.com"
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
