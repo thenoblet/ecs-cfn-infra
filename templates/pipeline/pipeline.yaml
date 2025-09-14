@@ -134,7 +134,8 @@ Resources:
         detail:
           action-type: ["PUSH"]
           result: ["SUCCESS"]
-          repository-name: !ImportValue
+          repository-name: 
+            - !ImportValue
             Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName"
           image-tag:
             - latest
