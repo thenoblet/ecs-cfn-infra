@@ -134,9 +134,8 @@ Resources:
         detail:
           action-type: ["PUSH"]
           result: ["SUCCESS"]
-          repository-name:
-            - !ImportValue
-              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName"
+          repository-name: !ImportValue
+            Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName"
           image-tag:
             - latest
       Targets:
@@ -154,9 +153,8 @@ Resources:
       RoleArn: !GetAtt CodePipelineRole.Arn
       ArtifactStore:
         Type: S3
-        Location:
-          - !ImportValue
-            Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
+        Location: !ImportValue
+          Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
       Stages:
         - Name: Source
           Actions:
@@ -167,9 +165,8 @@ Resources:
                 Version: "1"
                 Provider: S3
               Configuration:
-                S3Bucket:
-                  - !ImportValue
-                    Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
+                S3Bucket: !ImportValue
+                  Fn::Sub: ${BaseInfraStackName}-ArtifactBucket
                 S3ObjectKey: "deployment-files.zip"
                 PollForSourceChanges: false
               OutputArtifacts:
