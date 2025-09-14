@@ -115,18 +115,16 @@ Resources:
       ExecutionRoleArn: !Ref ECSTaskExecutionRole
       ContainerDefinitions:
         - Name: "awslab-app-container"
-          Image:
-            - !ImportValue
-              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryUri"
+          Image: !ImportValue
+            Fn::Sub: "${BaseInfraStackName}-ECRRepositoryUri"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group:
-                - !ImportValue
-                  Fn::Sub: "${BaseInfraStackName}-CloudWatchLogsGroup"
+              awslogs-group: !ImportValue
+                Fn::Sub: "${BaseInfraStackName}-CloudWatchLogsGroup"
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
           HealthCheck:
@@ -160,7 +158,7 @@ Resources:
               Fn::Sub: "${SecurityStackName}-ECSSG-ID"
       LoadBalancers:
         - TargetGroupArn: !Ref TargetGroupBlue
-          ContainerName: !Sub ECSContainerName
+          ContainerName: !Ref ECSContainerName
           ContainerPort: 8080
 
   ECSServiceAutoScalingTarget:
