@@ -117,7 +117,7 @@ Resources:
         - Name: "awslab-app-container"
           Image:
             - !ImportValue
-              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName.RepositoryUri"
+              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryUri"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
