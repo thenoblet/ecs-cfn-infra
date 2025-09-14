@@ -117,7 +117,7 @@ Resources:
         - Name: "awslab-app-container"
           Image:
             - !ImportValue
-              Fn::Sub: "${CICD-BASE-STK}-ECRRepositoryName.RepositoryUri:latest"
+              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName.RepositoryUri:latest"
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
@@ -126,7 +126,7 @@ Resources:
             Options:
               awslogs-group:
                 - !ImportValue
-                  Fn::Sub: "${CICD-BASE-STK}-CloudWatchLogsGroup"
+                  Fn::Sub: "${BaseInfraStackName}-CloudWatchLogsGroup"
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
           HealthCheck:
