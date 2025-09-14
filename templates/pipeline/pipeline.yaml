@@ -136,7 +136,7 @@ Resources:
           result: ["SUCCESS"]
           repository-name:
             - !ImportValue
-              Fn::Sub: "${ECSStackName}-ECRRepositoryName"
+              Fn::Sub: "${BaseInfraStackName}-ECRRepositoryName"
           image-tag:
             - latest
       Targets:
